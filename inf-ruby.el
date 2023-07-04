@@ -1021,6 +1021,7 @@ keymaps to bind `inf-ruby-switch-from-compilation' to `С-x C-q'."
 
 (defvar inf-ruby-console-patterns-alist
   '((".zeus.sock" . zeus)
+    ("dip.yml" . diprails)
     (inf-ruby-console-rails-p . rails)
     (inf-ruby-console-hanami-p . hanami)
     (inf-ruby-console-script-p . script)
@@ -1090,6 +1091,26 @@ automatically."
   (let ((default-directory (file-name-as-directory dir))
         (exec-prefix (if (executable-find "zeus") "" "bundle exec ")))
     (inf-ruby-console-run (concat exec-prefix "zeus console") "zeus")))
+
+;;;###autoload
+(defun inf-ruby-console-dipdebug (dir)
+  "Run Rails console in DIR with dip."
+  (interactive (list (inf-ruby-console-read-directory 'diprails)))
+  (let* ((default-directory (file-name-as-directory dir))
+         )
+    (inf-ruby-console-run
+     "bash -c \"docker attach $(dip compose ps web -q)\""
+     "dipdebug")))
+
+;;;###autoload
+(defun inf-ruby-console-diprails (dir)
+  "Run Rails console in DIR with dip."
+  (interactive (list (inf-ruby-console-read-directory 'diprails)))
+  (let* ((default-directory (file-name-as-directory dir))
+         )
+    (inf-ruby-console-run
+     "dip rails c -- --nomultiline --noreadline"
+     "diprails")))
 
 ;;;###autoload
 (defun inf-ruby-console-rails (dir)

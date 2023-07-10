@@ -479,8 +479,12 @@ See variable `inf-ruby-buffers'."
 Must not contain ruby meta characters.")
 
 (defconst inf-ruby-eval-binding
-  (concat "(defined?(IRB.conf) && IRB.conf[:MAIN_CONTEXT] && IRB.conf[:MAIN_CONTEXT].workspace.binding) || "
-          "(defined?(Pry) && Pry.toplevel_binding)"))
+  "()"
+  )
+;; TODO: но зачем впринципе делать по toplevel?
+;; (defconst inf-ruby-eval-binding
+;;   (concat "(defined?(IRB.conf) && IRB.conf[:MAIN_CONTEXT] && IRB.conf[:MAIN_CONTEXT].workspace.binding) || "
+;;           "(defined?(Pry) && Pry.toplevel_binding)"))
 
 (defconst ruby-eval-separator "")
 
@@ -606,10 +610,33 @@ the overlay."
             ;; Put the cursor property only once we're done manipulating the
             ;; string, since we want it to be at the first char.
             (put-text-property 0 1 'cursor 0 display-string)
-            (when (> (string-width display-string) (* 3 (window-width)))
+            (when (> (string-width display-string) (* 5 (window-width)))
               (setq display-string
-                    (concat (substring display-string 0 (* 3 (window-width)))
+                    (concat (substring display-string 0 (* 5 (window-width)))
                             "...\nResult truncated.")))
+            ;; Break the string into multiple lines if it's too long.
+            ;;; first version
+            ;; (with-temp-buffer
+            ;;   (let ((fill-column (window-width)))
+            ;;     (dolist (line (split-string display-string "\n"))
+            ;;       (insert line)
+            ;;       (fill-region (line-beginning-position) (line-end-position))
+            ;;       (insert "\n"))
+            ;;     (setq display-string (buffer-substring (point-min) (point-max)))))
+            ;;; second version
+            (with-temp-buffer
+              (let ((fill-column (window-width))
+                    (first-line t))
+                (dolist (line (split-string display-string "\n"))
+                  (insert line)
+                  ;; Calculate remaining space on the first line.
+                  (when first-line
+                    (setq fill-column (- fill-column (current-column)))
+                    (setq first-line nil))
+                  (fill-region (line-beginning-position) (line-end-position))
+                  (insert "\n"))
+                (setq display-string (buffer-substring (point-min) (point-max)))))
+
             ;; Create the result overlay.
             (setq o (apply #'inf-ruby--make-overlay
                            beg end type
@@ -663,7 +690,7 @@ This function also removes itself from `pre-command-hook'."
                        (looking-at inf-ruby-first-prompt-pattern)))
         (accept-process-output proc))
       (re-search-backward inf-ruby-prompt-pattern)
-      (or (re-search-forward " => " (car comint-last-prompt) t)
+      (or (re-search-forward "=> " (car comint-last-prompt) t)
           ;; Evaluation seems to have failed.
           ;; Try to extract the error string.
           (let* ((inhibit-field-text-motion t)
@@ -671,6 +698,11 @@ This function also removes itself from `pre-command-hook'."
             (while (string-match inf-ruby-prompt-pattern s)
               (setq s (replace-match "" t t s)))
             (error "%s" s)))
+      ;; (message (looking-at " *$"))
+      ;; (message "%c" (char-after (point)))
+      ;; (message "%c" (char-before (point)))
+      ;; (message (thing-at-point 'word))
+      ;; (message (thing-at-point 'line))
       (if (looking-at " *$")
           (progn
             (goto-char (1+ (match-end 0)))
@@ -1101,6 +1133,16 @@ automatically."
     (inf-ruby-console-run
      "bash -c \"docker attach $(dip compose ps web -q)\""
      "dipdebug")))
+
+;;;###autoload
+(defun inf-ruby-console-diprspec (dir)
+  "Run Rails console in DIR with dip."
+  (interactive (list (inf-ruby-console-read-directory 'diprails)))
+  (let* ((default-directory (file-name-as-directory dir))
+         )
+    (inf-ruby-console-run
+     "dip rspec -- --nomultiline --noreadline"
+     "diprspec")))
 
 ;;;###autoload
 (defun inf-ruby-console-diprails (dir)
